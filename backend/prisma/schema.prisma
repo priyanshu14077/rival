@@ -44,19 +44,20 @@ model Session {
 }
 
 model Blog {
-  id        String    @id @default(cuid())
-  title     String
-  slug      String    @unique
-  content   String
-  summary   String?
-  published Boolean   @default(false)
-  authorId  String
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  likes     Like[]
-  comments  Comment[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  content     String
+  summary     String?
+  isPublished Boolean   @default(false)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes       Like[]
+  comments    Comment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
+  @@index([userId, createdAt])
   @@index([slug])
 }
 

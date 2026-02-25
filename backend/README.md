@@ -2,97 +2,120 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+# Rival Backend - Production-Ready Blog API
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+A robust, secure, and scalable NestJS backend implementing a complete **Authentication System** and **Private Blog Management** feature.
 
-## Description
+## 🚀 Key Features
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### 🔐 Authentication & Session Management
+- **JWT Dual-Token Flow**: Implements short-lived Access Tokens and long-lived Refresh Tokens.
+- **Server-Side Sessions**: Full session tracking (IP, User Agent) with the ability to revoke access remotely.
+- **Secure Hashing**: Password protection using `bcrypt` with salt generation.
+- **Identity Context**: Custom `@CurrentUser` and `@CurrentSession` decorators for clean ID extraction in controllers.
 
-## Project setup
+### 📝 Private Blog CRUD (Phase 3)
+- **Ownership Enforcement**: Users can only view, edit, or delete their own blogs via strict authorization guards.
+- **Deterministic Slugs**: Automatic slug generation from titles with safe collision handling (`slug`, `slug-2`, etc.).
+- **Advanced Querying**: Paginated listings with search, sorting, and filtering support.
+- **Performance**: Composite database indexes for optimized dashboard queries.
 
-```bash
-$ npm install
+## 🛠 Tech Stack
+
+- **Framework**: [NestJS](https://nestjs.com/) (TypeScript)
+- **Database**: [PostgreSQL](https://www.postgresql.org/)
+- **ORM**: [Prisma](https://www.prisma.io/)
+- **Security**: [Passport.js](https://www.passportjs.org/), [JWT](https://jwt.io/), [Bcrypt](https://github.com/kelektiv/node.bcrypt.js)
+- **Validation**: [class-validator](https://github.com/typestack/class-validator), `ValidationPipe`
+
+## 🏗 System Architecture
+
+The following diagram illustrates the request flow and module dependencies within the system:
+
+```mermaid
+graph TD
+    Client[Client Request] --> AuthGuard[JwtAuthGuard]
+    AuthGuard --> Controller[Feature Controller]
+    Controller --> Service[Business Logic Service]
+    Service --> Utils[Utilities: Slug/Bcrypt]
+    Service --> Prisma[Prisma Service]
+    Prisma --> DB[(PostgreSQL)]
 ```
 
-## Compile and run the project
+### Module Dependencies
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```mermaid
+graph LR
+    AppModule --> AuthModule
+    AppModule --> BlogsModule
+    AuthModule --> UsersModule
+    AuthModule --> SessionsModule
+    BlogsModule --> PrismaModule
+    UsersModule --> PrismaModule
+    SessionsModule --> PrismaModule
 ```
 
-## Run tests
+## 🔐 Technical Implementation Details
 
-```bash
-# unit tests
-$ npm run test
+### Slug Generation Logic
+On blog creation or title update, the system uses a custom utility to:
+1. Normalize the title (Lowercase, Strip unsafe chars).
+2. Attempt to save the base slug.
+3. Catch Prisma `P2002` (Unique Constraint) errors and execute a retry loop with incrementing suffixes until a unique slug is found.
 
-# e2e tests
-$ npm run test:e2e
+### Ownership Security
+Instead of generic ID checks, the `BlogsService` performs ownership verification before any sensitive operation.
+- **403 Forbidden**: Returned if the resource exists but belongs to another user.
+- **404 Not Found**: Returned if the resource ID does not exist.
 
-# test coverage
-$ npm run test:cov
-```
+## 🚥 API Endpoints
 
-## Deployment
+### Auth
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| POST | `/auth/register` | Register a new user |
+| POST | `/auth/login` | Login and receive JWT tokens |
+| POST | `/auth/refresh` | Get a new access token using refresh token |
+| GET | `/auth/me` | Get current user's profile |
+| POST | `/auth/logout` | Invalidate current session |
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Blogs
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| POST | `/blogs` | JWT | Create a new blog |
+| GET | `/blogs` | JWT | List my blogs (Paginated) |
+| GET | `/blogs/:id` | JWT | Get a specific blog (Owner only) |
+| PATCH | `/blogs/:id` | JWT | Update blog (Owner only) |
+| DELETE | `/blogs/:id` | JWT | Delete blog (Owner only) |
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## 🛠 Project Setup
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+2. **Environment Variables**
+   Create a `.env` file in the root:
+   ```env
+   DATABASE_URL="your-postgresql-url"
+   JWT_SECRET="your-access-token-secret"
+   JWT_REFRESH_SECRET="your-refresh-token-secret"
+   PORT=3001
+   ```
 
-## Resources
+3. **Database Initialization**
+   ```bash
+   npx prisma db push
+   npx prisma generate
+   npm run seed
+   ```
 
-Check out a few resources that may come in handy when working with NestJS:
+4. **Run Application**
+   ```bash
+   # Development
+   npm run start:dev
+   ```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+Developed by Antigravity AI

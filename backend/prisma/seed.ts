@@ -18,16 +18,20 @@ async function main() {
     const hashedUser1Password = await bcrypt.hash('Password123!', salt);
     const hashedUser2Password = await bcrypt.hash('Password123!', salt);
 
-    const user1 = await prisma.user.create({
-        data: {
+    const user1 = await prisma.user.upsert({
+        where: { email: 'alice@example.com' },
+        update: {},
+        create: {
             email: 'alice@example.com',
             name: 'Alice Johnson',
             passwordHash: hashedUser1Password,
         },
     });
 
-    const user2 = await prisma.user.create({
-        data: {
+    const user2 = await prisma.user.upsert({
+        where: { email: 'bob@example.com' },
+        update: {},
+        create: {
             email: 'bob@example.com',
             name: 'Bob Smith',
             passwordHash: hashedUser2Password,
@@ -45,8 +49,8 @@ async function main() {
             slug: 'getting-started-with-prisma',
             content: 'Prisma is a modern database toolkit for TypeScript and Node.js...',
             summary: 'An introductory guide to Prisma.',
-            published: true,
-            authorId: user1.id,
+            isPublished: true,
+            userId: user1.id,
         },
     });
 
@@ -58,8 +62,8 @@ async function main() {
             slug: 'nextjs-13-features',
             content: 'Next.js 13 introduced many exciting features like App Router...',
             summary: 'Explore the new features of Next.js 13.',
-            published: true,
-            authorId: user2.id,
+            isPublished: true,
+            userId: user2.id,
         },
     });
 
