@@ -1,6 +1,7 @@
-import { PrismaClient } from '../generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import * as bcrypt from 'bcrypt';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -13,21 +14,23 @@ async function main() {
     console.log('Seeding database...');
 
 
-    const user1 = await prisma.user.upsert({
-        where: { email: 'alice@example.com' },
-        update: {},
-        create: {
+    const salt = await bcrypt.genSalt(10);
+    const hashedUser1Password = await bcrypt.hash('Password123!', salt);
+    const hashedUser2Password = await bcrypt.hash('Password123!', salt);
+
+    const user1 = await prisma.user.create({
+        data: {
             email: 'alice@example.com',
             name: 'Alice Johnson',
+            passwordHash: hashedUser1Password,
         },
     });
 
-    const user2 = await prisma.user.upsert({
-        where: { email: 'bob@example.com' },
-        update: {},
-        create: {
+    const user2 = await prisma.user.create({
+        data: {
             email: 'bob@example.com',
             name: 'Bob Smith',
+            passwordHash: hashedUser2Password,
         },
     });
 
