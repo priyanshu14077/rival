@@ -5,10 +5,14 @@ import { UpdateBlogDto } from './dto/update-blog.dto';
 import { QueryBlogDto } from './dto/query-blog.dto';
 import { slugify } from './utils/slug.util';
 import { Prisma } from '@prisma/client';
+import { QueueService } from '../jobs/queue.service';
 
 @Injectable()
 export class BlogsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private queueService: QueueService,
+    ) { }
 
     async create(userId: string, dto: CreateBlogDto) {
         const { title, content, isPublished } = dto;
@@ -19,7 +23,7 @@ export class BlogsService {
         while (suffix < maxRetries) {
             try {
                 const currentSlug = suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`;
-                return await this.prisma.blog.create({
+                const blog = await this.prisma.blog.create({
                     data: {
                         title,
                         content,
@@ -28,6 +32,12 @@ export class BlogsService {
                         userId,
                     },
                 });
+
+                if (blog.isPublished) {
+                    await this.queueService.addSummaryJob(blog.id);
+                }
+
+                return blog;
             } catch (error) {
                 if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
                     suffix++;
@@ -97,15 +107,24 @@ export class BlogsService {
         const { title, ...rest } = dto;
         const updateData: Prisma.BlogUpdateInput = { ...rest };
 
+        const newlyPublished = dto.isPublished === true && blog.isPublished === false;
+        let updatedBlog;
+
         if (title && title !== blog.title) {
             updateData.title = title;
-            return this.updateWithSlug(id, title, updateData);
+            updatedBlog = await this.updateWithSlug(id, title, updateData);
+        } else {
+            updatedBlog = await this.prisma.blog.update({
+                where: { id },
+                data: updateData,
+            });
         }
 
-        return this.prisma.blog.update({
-            where: { id },
-            data: updateData,
-        });
+        if (newlyPublished) {
+            await this.queueService.addSummaryJob(id);
+        }
+
+        return updatedBlog;
     }
 
     private async updateWithSlug(id: string, title: string, updateData: Prisma.BlogUpdateInput) {

@@ -59,6 +59,7 @@ model Blog {
 
   @@index([userId, createdAt])
   @@index([slug])
+  @@index([isPublished, createdAt])
 }
 
 model Like {
@@ -83,4 +84,5 @@ model Comment {
   updatedAt DateTime @updatedAt
 
   @@index([blogId])
+  @@index([blogId, createdAt])
 }

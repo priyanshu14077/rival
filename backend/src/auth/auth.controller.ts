@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Get, UseGuards, Request, Req, Delete, Param } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -7,11 +8,13 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 export class AuthController {
     constructor(private authService: AuthService) { }
 
+    @Throttle({ default: { limit: 3, ttl: 3600000 } })
     @Post('register')
     async register(@Body() dto: RegisterDto) {
         return this.authService.register(dto);
     }
 
+    @Throttle({ default: { limit: 5, ttl: 900000 } })
     @Post('login')
     async login(@Body() dto: LoginDto, @Req() req: any) {
         const metadata = {
