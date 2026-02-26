@@ -22,7 +22,7 @@ export class PublicService {
                 orderBy: { createdAt: 'desc' },
                 include: {
                     user: {
-                        select: { id: true, email: true },
+                        select: { id: true, email: true, name: true },
                     },
                     _count: {
                         select: { likes: true, comments: true },
@@ -51,7 +51,7 @@ export class PublicService {
             where: { slug },
             include: {
                 user: {
-                    select: { id: true, email: true },
+                    select: { id: true, email: true, name: true },
                 },
                 _count: {
                     select: { likes: true, comments: true },
@@ -64,5 +64,21 @@ export class PublicService {
         }
 
         return blog;
+    }
+    async getStats() {
+        const [totalBlogs, totalUsers, totalComments, totalLikes] = await Promise.all([
+            this.prisma.blog.count({ where: { isPublished: true } }),
+            this.prisma.user.count(),
+            this.prisma.comment.count(),
+            this.prisma.like.count(),
+        ]);
+
+        return {
+            blogs: totalBlogs,
+            users: totalUsers,
+            comments: totalComments,
+            likes: totalLikes,
+            timestamp: new Date().toISOString(),
+        };
     }
 }

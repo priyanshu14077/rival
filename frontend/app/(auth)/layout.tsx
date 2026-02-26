@@ -2,6 +2,7 @@
 
 import LightRays from "@/components/LightRays";
 import TextType from "@/components/TextType";
+import { any } from "zod";
 
 export default function AuthLayout({
   children,
@@ -32,16 +33,15 @@ export default function AuthLayout({
           </h1>
           <div className="text-xl md:text-2xl font-mono text-cyan-400">
             <TextType 
-              texts={[
+              text={[
                 "EXPERIMENTAL BLOGGING",
                 "KINETIC THINKING",
                 "BRUTALIST VIBES",
                 "CREATE WITHOUT LIMITS"
               ]}
-              speed={50}
-              deletionSpeed={25}
-              pauseTime={3000}
-            />
+              typingSpeed={50}
+              deletingSpeed={25}
+              pauseDuration={3000} variableSpeed={undefined} onSentenceComplete={undefined}            />
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@resolvers/zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import StarBorder from "@/components/StarBorder";
+import { User } from "@/types";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -34,7 +35,7 @@ export default function RegisterPage() {
   const mutation = useMutation({
     mutationFn: async (data: RegisterFormValues) => {
       const response = await api.post("/auth/register", data);
-      return response as { user: any; token: string };
+      return response as unknown as { user: User; token: string };
     },
     onSuccess: (data) => {
       setAuth(data.user, data.token);

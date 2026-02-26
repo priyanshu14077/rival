@@ -14,7 +14,7 @@ export class CommentsController {
     async createComment(
         @Param('id') blogId: string,
         @Body() dto: CreateCommentDto,
-        @CurrentUser('id') userId: string,
+        @CurrentUser('userId') userId: string,
     ) {
         return this.commentsService.create(userId, blogId, dto);
     }

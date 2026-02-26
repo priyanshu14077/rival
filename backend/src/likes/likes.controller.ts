@@ -9,19 +9,19 @@ export class LikesController {
 
     @UseGuards(JwtAuthGuard)
     @Post(':id/like')
-    async likeBlog(@Param('id') blogId: string, @CurrentUser('id') userId: string) {
+    async likeBlog(@Param('id') blogId: string, @CurrentUser('userId') userId: string) {
         return this.likesService.toggleLike(userId, blogId);
     }
 
     @UseGuards(JwtAuthGuard)
     @Delete(':id/like')
-    async unlikeBlog(@Param('id') blogId: string, @CurrentUser('id') userId: string) {
+    async unlikeBlog(@Param('id') blogId: string, @CurrentUser('userId') userId: string) {
         return this.likesService.removeLike(userId, blogId);
     }
 
     @UseGuards(JwtAuthGuard)
     @Get(':id/likes')
-    async getLikeStatus(@Param('id') blogId: string, @CurrentUser('id') userId: string) {
+    async getLikeStatus(@Param('id') blogId: string, @CurrentUser('userId') userId: string) {
         return this.likesService.getLikeStatus(userId, blogId);
     }
 }

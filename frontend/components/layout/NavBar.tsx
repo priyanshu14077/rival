@@ -1,63 +1,62 @@
 "use client";
 
+import type React from "react";
 import PillNav from "../PillNav";
 import { useAuthStore } from "@/lib/store/useAuthStore";
 import { useTheme } from "next-themes";
-import { useRouter } from "next/navigation";
+import { UserMenu } from "./UserMenu";
+import { useEffect, useState } from "react";
 
 export function NavBar() {
-  const { status, clearAuth } = useAuthStore();
+  const { status } = useAuthStore();
   const { theme, setTheme } = useTheme();
-  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
-  const handleLogout = (e: React.MouseEvent) => {
-    e.preventDefault();
-    clearAuth();
-    router.push("/login");
-  };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const toggleTheme = (e: React.MouseEvent) => {
     e.preventDefault();
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
-  const commonItems = [
+  const navItems = [
     { label: "Home", href: "/" },
     { label: "Feed", href: "/feed" },
+    ...(status !== "authenticated"
+      ? [
+          { label: "Log In", href: "/login" },
+          { label: "Register", href: "/register" },
+        ]
+      : []),
+    {
+      label: mounted ? (theme === "dark" ? "Light" : "Dark") : "Theme",
+      href: "#",
+      onClick: toggleTheme,
+    },
   ];
 
-  const authItems = status === "authenticated"
-    ? [
-        ...commonItems,
-        { label: "Dashboard", href: "/dashboard" },
-        { label: "Sign Out", href: "#", onClick: handleLogout },
-      ]
-    : [
-        ...commonItems,
-        { label: "Log In", href: "/login" },
-        { label: "Register", href: "/register" },
-      ];
-
-  const themeToggleItem = {
-    label: theme === "dark" ? "Light Mode" : "Dark Mode",
-    href: "#",
-    onClick: toggleTheme,
-  };
-
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-      <PillNav
-        logo=""
-        logoAlt="R"
-        items={[
-          { href: "/" }, // Logo link placeholder
-          ...authItems,
-          themeToggleItem,
-        ]}
-        className="shadow-2xl shadow-cyan-500/10 border border-white/10"
-        baseColor="var(--foreground)"
-        pillColor="var(--primary)"
-      />
+    <div className="fixed top-6 w-full flex justify-center items-center px-6 z-50 pointer-events-none">
+      <div className="flex items-center gap-4 pointer-events-auto bg-black/50 backdrop-blur-md rounded-full px-2 py-1 border border-white/5 shadow-2xl">
+        <PillNav
+          logo=""
+          logoAlt="R"
+          items={navItems}
+          className="bg-transparent border-none shadow-none"
+          baseColor="var(--foreground)"
+          pillColor="var(--primary)"
+          pillTextColor="var(--background)"
+          onMobileMenuClick={() => {}}
+        />
+        
+        {status === "authenticated" && (
+          <div className="h-6 w-px bg-white/10 mx-2" />
+        )}
+        
+        {status === "authenticated" && <UserMenu />}
+      </div>
     </div>
   );
 }

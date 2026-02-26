@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@resolvers/zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import StarBorder from "@/components/StarBorder";
+import { User } from "@/types";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -33,7 +34,7 @@ export default function LoginPage() {
   const mutation = useMutation({
     mutationFn: async (data: LoginFormValues) => {
       const response = await api.post("/auth/login", data);
-      return response as { user: any; token: string };
+      return response as unknown as { user: User; token: string };
     },
     onSuccess: (data) => {
       setAuth(data.user, data.token);

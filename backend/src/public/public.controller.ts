@@ -18,4 +18,9 @@ export class PublicController {
     findOneBySlug(@Param('slug') slug: string) {
         return this.publicService.findOneBySlug(slug);
     }
+
+    @Get('stats')
+    getStats() {
+        return this.publicService.getStats();
+    }
 }
