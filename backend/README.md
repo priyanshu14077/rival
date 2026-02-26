@@ -1,10 +1,6 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
-
 # Rival Backend - Production-Ready Blog API
 
-A robust, secure, and scalable NestJS backend implementing a complete **Authentication System** and **Private Blog Management** feature.
+A robust, secure, and scalable NestJS backend implementing a complete **Authentication System**, **Public & Private Blog Management**, and **Interaction Systems**.
 
 ## 🚀 Key Features
 
@@ -13,32 +9,43 @@ A robust, secure, and scalable NestJS backend implementing a complete **Authenti
 - **Server-Side Sessions**: Full session tracking (IP, User Agent) with the ability to revoke access remotely.
 - **Secure Hashing**: Password protection using `bcrypt` with salt generation.
 - **Identity Context**: Custom `@CurrentUser` and `@CurrentSession` decorators for clean ID extraction in controllers.
+- **Rate Limiting**: Route-specific throttling for login (5req/15m) and registration (3req/h).
 
-### 📝 Private Blog CRUD (Phase 3)
-- **Ownership Enforcement**: Users can only view, edit, or delete their own blogs via strict authorization guards.
-- **Deterministic Slugs**: Automatic slug generation from titles with safe collision handling (`slug`, `slug-2`, etc.).
-- **Advanced Querying**: Paginated listings with search, sorting, and filtering support.
-- **Performance**: Composite database indexes for optimized dashboard queries.
+### 📝 Blog Management (Public & Private)
+- **Ownership Enforcement**: Users can only manage their own blogs.
+- **Deterministic Slugs**: Automatic slug generation from titles with safe collision handling.
+- **Optimized Public Feed**: Paginated feed with interaction counts (Likes/Comments) and author info, utilizing indexed queries to avoid N+1 problems.
+- **Public access**: Unauthenticated access to the global feed and specific blogs by slug.
+
+### ❤️ Interaction Systems
+- **Like System**: Idempotent toggle functionality for liking/unliking blogs.
+- **Comment System**: Authenticated users can leave comments (1-1000 characters), with paginated retrieval.
+
+### ⚡ Bonus Features
+- **Async Summary Jobs**: Uses **BullMQ + Redis** to generate blog summaries in the background when a blog is published, ensuring non-blocking HTTP responses.
+- **Advanced Rate Limiting**: Fine-grained throttling across public and private routes to prevent abuse.
 
 ## 🛠 Tech Stack
 
 - **Framework**: [NestJS](https://nestjs.com/) (TypeScript)
 - **Database**: [PostgreSQL](https://www.postgresql.org/)
 - **ORM**: [Prisma](https://www.prisma.io/)
-- **Security**: [Passport.js](https://www.passportjs.org/), [JWT](https://jwt.io/), [Bcrypt](https://github.com/kelektiv/node.bcrypt.js)
+- **Queue**: [BullMQ](https://docs.bullmq.io/) with [Redis](https://redis.io/)
+- **Security**: [Passport.js](https://www.passportjs.org/), [JWT](https://jwt.io/), [Bcrypt](https://github.com/kelektiv/node.bcrypt.js), [@nestjs/throttler](https://github.com/nestjs/throttler)
 - **Validation**: [class-validator](https://github.com/typestack/class-validator), `ValidationPipe`
 
 ## 🏗 System Architecture
 
-The following diagram illustrates the request flow and module dependencies within the system:
-
 ```mermaid
 graph TD
-    Client[Client Request] --> AuthGuard[JwtAuthGuard]
+    Client[Client Request] --> Throttler[ThrottlerGuard]
+    Throttler --> AuthGuard[JwtAuthGuard]
     AuthGuard --> Controller[Feature Controller]
     Controller --> Service[Business Logic Service]
-    Service --> Utils[Utilities: Slug/Bcrypt]
+    Service --> Queue[BullMQ: Summary Queue]
     Service --> Prisma[Prisma Service]
+    Queue --> Worker[Summary Processor]
+    Worker --> Prisma
     Prisma --> DB[(PostgreSQL)]
 ```
 
@@ -48,67 +55,62 @@ graph TD
 graph LR
     AppModule --> AuthModule
     AppModule --> BlogsModule
-    AuthModule --> UsersModule
-    AuthModule --> SessionsModule
-    BlogsModule --> PrismaModule
-    UsersModule --> PrismaModule
-    SessionsModule --> PrismaModule
+    AppModule --> PublicModule
+    AppModule --> LikesModule
+    AppModule --> CommentsModule
+    AppModule --> JobsModule
+    AppModule --> ThrottlerModule
+    BlogsModule --> JobsModule
+    JobsModule --> PrismaModule
 ```
 
 ## 🔐 Technical Implementation Details
 
-### Slug Generation Logic
-On blog creation or title update, the system uses a custom utility to:
-1. Normalize the title (Lowercase, Strip unsafe chars).
-2. Attempt to save the base slug.
-3. Catch Prisma `P2002` (Unique Constraint) errors and execute a retry loop with incrementing suffixes until a unique slug is found.
+### Optimized Performance
+To avoid the N+1 query problem, the public feed uses Prisma's `include` and `_count` features in a single query transaction. This is paired with composite indexes on `isPublished` and `createdAt` for sub-millisecond lookups.
 
-### Ownership Security
-Instead of generic ID checks, the `BlogsService` performs ownership verification before any sensitive operation.
-- **403 Forbidden**: Returned if the resource exists but belongs to another user.
-- **404 Not Found**: Returned if the resource ID does not exist.
+### Async Background Processing
+Publishing a blog triggers an async job. The HTTP response is returned immediately, while a background worker (BullMQ) processes the content to generate a summary. This ensures high availability and low latency.
 
 ## 🚥 API Endpoints
 
 ### Auth
+| Method | Endpoint | Limit | Description |
+| :--- | :--- | :--- | :--- |
+| POST | `/auth/register` | 3/h | Register a new user |
+| POST | `/auth/login` | 5/15m | Login and receive JWT tokens |
+| GET | `/auth/me` | - | Get current profile |
+
+### Public (No Auth)
+| Method | Endpoint | Limit | Description |
+| :--- | :--- | :--- | :--- |
+| GET | `/public/feed` | 30/min | Paginated list of published blogs |
+| GET | `/public/blogs/:slug` | 60/min | Get blog by unique slug |
+
+### Interactions (Auth)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Login and receive JWT tokens |
-| POST | `/auth/refresh` | Get a new access token using refresh token |
-| GET | `/auth/me` | Get current user's profile |
-| POST | `/auth/logout` | Invalidate current session |
-
-### Blogs
-| Method | Endpoint | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| POST | `/blogs` | JWT | Create a new blog |
-| GET | `/blogs` | JWT | List my blogs (Paginated) |
-| GET | `/blogs/:id` | JWT | Get a specific blog (Owner only) |
-| PATCH | `/blogs/:id` | JWT | Update blog (Owner only) |
-| DELETE | `/blogs/:id` | JWT | Delete blog (Owner only) |
+| POST | `/blogs/:id/like` | Like a blog (Idempotent) |
+| DELETE | `/blogs/:id/like` | Unlike a blog |
+| GET | `/blogs/:id/likes` | Get like count & status |
+| POST | `/blogs/:id/comments` | Add a comment (1-1000 chars) |
+| GET | `/blogs/:id/comments` | Get paginated comments |
 
 ## 🛠 Project Setup
 
-1. **Install Dependencies**
+1. **Prerequisites**
+   - PostgreSQL
+   - Redis (Required for Jobs/Queues)
+
+2. **Install Dependencies**
    ```bash
    npm install
-   ```
-
-2. **Environment Variables**
-   Create a `.env` file in the root:
-   ```env
-   DATABASE_URL="your-postgresql-url"
-   JWT_SECRET="your-access-token-secret"
-   JWT_REFRESH_SECRET="your-refresh-token-secret"
-   PORT=3001
    ```
 
 3. **Database Initialization**
    ```bash
    npx prisma db push
    npx prisma generate
-   npm run seed
    ```
 
 4. **Run Application**
