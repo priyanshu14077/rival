@@ -27,6 +27,7 @@ export class BlogsService {
                     data: {
                         title,
                         content,
+                        coverImage: dto.coverImage,
                         isPublished: isPublished ?? false,
                         slug: currentSlug,
                         userId,

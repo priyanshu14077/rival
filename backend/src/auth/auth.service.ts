@@ -74,6 +74,7 @@ export class AuthService {
 
         return {
             accessToken,
+            token: accessToken,
             refreshToken,
             expiresAt,
             user: {

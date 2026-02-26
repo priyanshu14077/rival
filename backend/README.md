@@ -120,4 +120,4 @@ Publishing a blog triggers an async job. The HTTP response is returned immediate
    ```
 
 ---
-Developed by Antigravity AI
+
